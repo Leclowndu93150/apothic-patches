@@ -5,6 +5,8 @@
   "compatibilityLevel": "JAVA_8",
   "refmap": "apothic_patches.refmap.json",
   "mixins": [
+    "ApothicCuriosAccessor",
+    "ApothicCuriosGemEffectsMixin",
     "EffectDataMixin",
     "GemBonusAccessor",
     "PotionBonusMixin"
