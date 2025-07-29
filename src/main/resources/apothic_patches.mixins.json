@@ -1,0 +1,20 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.leclowndu93150.apothic_patches.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "apothic_patches.refmap.json",
+  "mixins": [
+    "EffectDataMixin",
+    "GemBonusAccessor",
+    "PotionBonusMixin"
+  ],
+  "client": [
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}
