@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 
 @Mixin(value = GemBonus.class, remap = false)
 public interface GemBonusAccessor {
-    
+
     @Invoker("getCooldownId")
-    ResourceLocation invokeGetCooldownId(ItemStack gemStack);
+    ResourceLocation invokeGetCooldownId(ItemStack stack);
 }

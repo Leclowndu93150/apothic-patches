@@ -1,54 +1,54 @@
 package com.leclowndu93150.apothic_patches.mixin;
 
 import com.leclowndu93150.apothic_patches.Config;
-import com.leclowndu93150.apothic_patches.ExtendedEffectData;
+import com.leclowndu93150.apothic_patches.MaxAmplifierManager;
 import dev.shadowsoffire.apotheosis.adventure.affix.Affix;
+import dev.shadowsoffire.apotheosis.adventure.affix.effect.PotionAffix;
 import dev.shadowsoffire.apotheosis.adventure.loot.LootRarity;
+import dev.shadowsoffire.apotheosis.adventure.socket.gem.GemItem;
 import dev.shadowsoffire.apotheosis.adventure.socket.gem.bonus.PotionBonus;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import java.util.Map;
 
 @Mixin(value = PotionBonus.class, remap = false)
 public class PotionBonusMixin {
-    
+
     @Shadow @Final protected MobEffect effect;
     @Shadow @Final protected boolean stackOnReapply;
-    @Shadow @Final protected java.util.Map<LootRarity, PotionBonus.EffectData> values;
-    
-    @Shadow
-    protected int getCooldown(LootRarity rarity) {
-        throw new AssertionError();
-    }
-    
-    
-    /**
-     * @author
-     * @reason
-     */
-    @Overwrite(remap = false)
-    private void applyEffect(ItemStack gemStack, LivingEntity target, LootRarity rarity) {
-        int cooldown = this.getCooldown(rarity);
-        if (cooldown == 0 || !Affix.isOnCooldown(((GemBonusAccessor)this).invokeGetCooldownId(gemStack), cooldown, target)) {
+    @Shadow @Final protected Map<LootRarity, PotionBonus.EffectData> values;
+    @Shadow @Final protected PotionAffix.Target target;
+
+
+    @Inject(method = "applyEffect", at = @At("HEAD"), cancellable = true, remap = false)
+    private void applyEffectWithMaxAmplifier(ItemStack gemStack, LivingEntity target, LootRarity rarity, CallbackInfo ci) {
+        int cooldown = ((PotionBonusAccessor)this).invokeGetCooldown(rarity);
+        if (cooldown == 0 || !Affix.isOnCooldown(((GemBonusAccessor) this).invokeGetCooldownId(gemStack), cooldown, target)) {
             PotionBonus.EffectData data = this.values.get(rarity);
             MobEffectInstance inst = target.getEffect(this.effect);
 
             if (this.stackOnReapply && inst != null) {
-                int maxAmplifier = ExtendedEffectData.getMaxAmplifier(data);
-                System.out.println("Max Amplifier: " + maxAmplifier);
-                if (maxAmplifier == -1) {
-                    maxAmplifier = Config.defaultAmplifierCap;
+                ResourceLocation gemId = GemItem.getGem(gemStack).getId();
+                int maxAmp = MaxAmplifierManager.getMaxAmplifier(gemId);
+
+                if (maxAmp == -1) {
+                    maxAmp = Config.defaultAmplifierCap;
                 }
 
                 int newAmplifier = inst.getAmplifier() + 1 + data.amplifier();
 
-                if (maxAmplifier >= 0 && newAmplifier > maxAmplifier) {
-                    newAmplifier = maxAmplifier;
+                if (maxAmp >= 0 && newAmplifier > maxAmp) {
+                    newAmplifier = maxAmp;
                 }
 
                 MobEffectInstance newInst = new MobEffectInstance(this.effect, Math.max(inst.getDuration(), data.duration()), newAmplifier);
@@ -57,7 +57,8 @@ public class PotionBonusMixin {
                 target.addEffect(data.build(this.effect));
             }
 
-            Affix.startCooldown(((GemBonusAccessor)this).invokeGetCooldownId(gemStack), target);
+            Affix.startCooldown(((GemBonusAccessor) this).invokeGetCooldownId(gemStack), target);
         }
+        ci.cancel();
     }
 }
