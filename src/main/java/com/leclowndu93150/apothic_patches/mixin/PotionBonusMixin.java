@@ -40,6 +40,7 @@ public class PotionBonusMixin {
 
             if (this.stackOnReapply && inst != null) {
                 int maxAmplifier = ExtendedEffectData.getMaxAmplifier(data);
+                System.out.println("Max Amplifier: " + maxAmplifier);
                 if (maxAmplifier == -1) {
                     maxAmplifier = Config.defaultAmplifierCap;
                 }
