@@ -7,10 +7,17 @@
   "mixins": [
     "ApothicCuriosAccessor",
     "ApothicCuriosGemEffectsMixin",
+    "AttributeEffectBonusMixin",
     "DynamicRegistryMixin",
     "GemBonusAccessor",
+    "MultiEffectBonusMixin",
+    "PermanentEffectBonusMixin",
+    "PermanentEffectHandlerAccessor",
     "PotionBonusAccessor",
-    "PotionBonusMixin"
+    "PotionBonusMixin",
+    "SpellEffectBonusAccessor",
+    "SpellEffectBonusMixin",
+    "SpellEventHandlerMixin"
   ],
   "client": [
   ],

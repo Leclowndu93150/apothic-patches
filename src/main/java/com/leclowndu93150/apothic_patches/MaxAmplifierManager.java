@@ -20,7 +20,9 @@ public class MaxAmplifierManager {
     }
     
     public static int getMaxAmplifier(ResourceLocation gemId) {
-        return MAX_AMPLIFIERS.getOrDefault(gemId, -1);
+        int maxAmplifier =  MAX_AMPLIFIERS.getOrDefault(gemId, -1);
+        System.out.println("[DEBUG] Max amplifier for gem ID " + gemId + ": " + maxAmplifier);
+        return maxAmplifier - 1; //starts at 0
     }
     
     public static Map<ResourceLocation, Integer> getAllMaxAmplifiers() {
