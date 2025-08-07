@@ -10,6 +10,7 @@ import dev.shadowsoffire.apotheosis.adventure.loot.LootRarity;
 import dev.shadowsoffire.apotheosis.adventure.socket.SocketHelper;
 import dev.shadowsoffire.apotheosis.adventure.socket.gem.Gem;
 import dev.shadowsoffire.apotheosis.adventure.socket.gem.GemInstance;
+import dev.shadowsoffire.apotheosis.adventure.socket.gem.GemItem;
 import dev.shadowsoffire.apotheosis.adventure.socket.gem.bonus.GemBonus;
 import dev.shadowsoffire.placebo.reload.DynamicHolder;
 import io.redspace.ironsspellbooks.api.events.SpellDamageEvent;
@@ -17,6 +18,8 @@ import io.redspace.ironsspellbooks.api.events.SpellHealEvent;
 import net.kayn.fallen_gems_affixes.adventure.affix.SpellEffectAffix;
 import net.kayn.fallen_gems_affixes.adventure.socket.gem.bonus.SpellEffectBonus;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -66,14 +69,14 @@ public class CuriosSpellEventHandler {
                 List<GemInstance> gems = SocketHelper.getGems(stack).gems();
                 LootCategory category = LootCategory.forItem(stack);
                 if (category != null) {
-                    for (GemInstance gem : gems) {
-                        DynamicHolder<LootRarity> rarityHolder = gem.rarity();
+                    for (GemInstance gemInstance : gems) {
+                        DynamicHolder<LootRarity> rarityHolder = gemInstance.rarity();
                         if (rarityHolder.isBound()) {
                             LootRarity rarity = rarityHolder.get();
 
-                            Gem gemObj = gem.gem().get();
+                            Gem gemObj = gemInstance.gem().get();
                             gemObj.getBonus(category, rarity).ifPresent(bonus -> 
-                                processSpellEffectGemBonus(bonus, stack, caster, target, rarity, selfTarget, otherTarget)
+                                processSpellEffectGemBonus(bonus, gemInstance, caster, target, rarity, selfTarget, otherTarget)
                             );
                         }
                     }
@@ -100,22 +103,77 @@ public class CuriosSpellEventHandler {
         }
     }
 
-    private static void processSpellEffectGemBonus(GemBonus bonus, ItemStack stack, LivingEntity caster, LivingEntity target, LootRarity rarity, SpellEffectAffix.Target selfTarget, SpellEffectAffix.Target otherTarget) {
+    private static void processSpellEffectGemBonus(GemBonus bonus, GemInstance gemInstance, LivingEntity caster, LivingEntity target, LootRarity rarity, SpellEffectAffix.Target selfTarget, SpellEffectAffix.Target otherTarget) {
         if (bonus instanceof SpellEffectBonus spellBonus) {
             SpellEffectAffix.Target bonusTarget = spellBonus.target;
+            ItemStack gemStack = gemInstance.gemStack();
 
-            ResourceLocation cooldownId = ((GemBonusAccessor) bonus).invokeGetCooldownId(stack);
+            ResourceLocation cooldownId = ((GemBonusAccessor) bonus).invokeGetCooldownId(gemStack);
             int cooldown = ((SpellEffectBonusAccessor) spellBonus).invokeGetCooldown(rarity);
             
             if (cooldown == 0 || !Affix.isOnCooldown(cooldownId, cooldown, caster)) {
                 if (bonusTarget == selfTarget) {
-                    spellBonus.applyEffect(stack, caster, rarity);
+                    applySpellEffectWithCap(spellBonus, gemStack, caster, rarity);
                     Affix.startCooldown(cooldownId, caster);
                 } else if (bonusTarget == otherTarget && target != null) {
-                    spellBonus.applyEffect(stack, target, rarity);
+                    applySpellEffectWithCap(spellBonus, gemStack, target, rarity);
                     Affix.startCooldown(cooldownId, caster);
                 }
             }
+        }
+    }
+    
+    private static void applySpellEffectWithCap(SpellEffectBonus spellBonus, ItemStack gemStack, LivingEntity target, LootRarity rarity) {
+        SpellEffectBonusAccessor accessor = (SpellEffectBonusAccessor) spellBonus;
+        MobEffect effect = accessor.getEffect();
+        SpellEffectBonus.EffectData data = accessor.getValues().get(rarity);
+        
+        if (data == null) return;
+        
+        ResourceLocation gemId = GemItem.getGem(gemStack).getId();
+        int maxAmp = MaxAmplifierManager.getMaxAmplifier(gemId);
+        
+        if (maxAmp == -1) {
+            maxAmp = Config.defaultAmplifierCap;
+        }
+        
+        boolean stackOnReapply = accessor.getStackOnReapply();
+        int stackingLimit = accessor.getStackingLimit();
+        
+        MobEffectInstance currentEffect = target.getEffect(effect);
+        
+        if (stackOnReapply && currentEffect != null) {
+            int amplifier = Math.min(stackingLimit, currentEffect.getAmplifier() + 1 + data.amplifier());
+            
+            if (maxAmp >= 0 && amplifier > maxAmp) {
+                amplifier = maxAmp;
+            }
+            
+            MobEffectInstance newInst = new MobEffectInstance(
+                effect,
+                Math.max(currentEffect.getDuration(), data.duration()),
+                amplifier,
+                false,
+                true,
+                true
+            );
+            target.addEffect(newInst);
+        } else {
+            int amplifier = data.amplifier();
+            
+            if (maxAmp >= 0 && amplifier > maxAmp) {
+                amplifier = maxAmp;
+            }
+            
+            MobEffectInstance newInst = new MobEffectInstance(
+                effect,
+                data.duration(),
+                amplifier,
+                false,
+                true,
+                true
+            );
+            target.addEffect(newInst);
         }
     }
 }
